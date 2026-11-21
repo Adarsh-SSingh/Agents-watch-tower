@@ -1,0 +1,43 @@
+# Core
+python-dotenv
+requests
+sqlalchemy
+pandas
+psutil
+scikit-learn
+
+# API and dashboard
+fastapi
+uvicorn
+python-multipart
+pydantic
+streamlit
+plotly
+
+# LangChain stack
+langchain-core
+langchain-openai
+langchain-community
+langchain-text-splitters
+langchain-chroma
+langchain-nvidia-ai-endpoints
+chromadb
+
+# Document loaders
+pypdf
+docx2txt
+unstructured
+openpyxl
+python-pptx
+
+# Research agent
+beautifulsoup4
+tavily-python
+
+# Testing
+pytest
+python-docx 
+reportlab
+python-docx 
+reportlab 
+pypdf
