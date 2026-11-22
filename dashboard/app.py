@@ -413,7 +413,7 @@ st.markdown(
     .ag-table td.num, .ag-table th.num {text-align: right; font-variant-numeric: tabular-nums;}
 
     /* health cards */
-    .hc-grid {display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: .9rem; margin: .4rem 0 1rem;}
+    .hc-grid {display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: .9rem; margin: .4rem 0 1rem;}
     .hc {
         padding: 1rem 1.1rem; border-radius: 16px; border: 1px solid rgba(148,163,184,.2);
         background: linear-gradient(160deg, rgba(34,211,238,.07), rgba(139,92,246,.07)), rgba(15,23,42,.6);
@@ -457,6 +457,14 @@ st.markdown(
     .ws-banner p {margin: .3rem 0 0 0 !important; line-height: 1.5;}
     .ws-banner .chips {margin-top: .6rem;}
     .steps-panel {padding-left: 1.2rem; border-left: 1px solid rgba(148,163,184,.2);}
+
+    /* info boxes (empty states) stay dark, text readable */
+    [data-testid="stAlertContainer"]:has([data-testid="stAlertContentInfo"]) {
+        background: rgba(34,211,238,.07) !important;
+        border: 1px solid rgba(34,211,238,.25) !important;
+        border-radius: 12px !important;
+    }
+    [data-testid="stAlert"]:has([data-testid="stAlertContentInfo"]) * {color: #cbd5e1 !important;}
 
     /* ================= ROUND 4: perfect alignment ================= */
 
@@ -1101,8 +1109,9 @@ def _dark(fig, height):
         height=height,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        margin={"l": 10, "r": 10, "t": 10, "b": 10},
-        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1},
+        margin={"l": 10, "r": 10, "t": 34, "b": 10},
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1,
+                "font": {"color": "#e2e8f0"}, "title": {"font": {"color": "#e2e8f0"}}},
     )
     fig.update_xaxes(showgrid=False)
     fig.update_yaxes(gridcolor="rgba(148,163,184,.15)")
@@ -2579,8 +2588,11 @@ if page == "Monitoring":
                     color_discrete_map=status_color_map(_groups["status"].unique()),
                     labels={"agent_label": "Agent", "runs": "Runs", "status_label": "Status"},
                 )
-                fig_outcomes.update_layout(barmode="stack")
-                show_chart(_dark(fig_outcomes, 250), key="agents_outcomes")
+                fig_outcomes.update_layout(barmode="stack", legend_title_text="")
+                _dark(fig_outcomes, 290)
+                fig_outcomes.update_layout(margin={"l": 10, "r": 10, "t": 52, "b": 10},
+                                           legend={"y": 1.12})
+                show_chart(fig_outcomes, key="agents_outcomes")
 
             heading("clock", "Latency")
 
