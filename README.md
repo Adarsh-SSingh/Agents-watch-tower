@@ -6,14 +6,7 @@
 
 <br/>
 
-<table>
-<tr>
-<td align="center"><h2>3,975</h2>traced runs</td>
-<td align="center"><h2>17M</h2>tokens recorded</td>
-<td align="center"><h2>95.8% → 59.5%</h2>generated vs real documents</td>
-<td align="center"><h2>69.2% → 73.9%</h2>held-out, fixes off vs on</td>
-</tr>
-</table>
+<img src="docs/images/stats.svg" width="100%" alt="Project statistics: 3 agents, 3,975 runs, 17M tokens, clean-run success per agent" />
 
 <br/>
 
@@ -35,7 +28,7 @@
 
 ---
 
-## ▍ The idea
+## The idea
 
 A normal monitor only knows when a run **crashes**. An AI agent can also fail **without crashing**:
 it retrieves the wrong chunk, a tool returns bad data, or the model answers confidently and wrongly.
@@ -45,6 +38,8 @@ AI Agent Watch Tower runs three different agents, records every step of every ru
 checks answers against known correct answers, and shows both kinds of failure in one place.
 The next phase trains ML models on this run data to predict failures.
 
+
+<img src="docs/images/gap.svg" width="100%" alt="Bar chart: 99.5% of Document Agent runs succeeded, but only 59.5% of answers on real documents were correct" />
 
 ### At a glance
 
@@ -58,7 +53,7 @@ The next phase trains ML models on this run data to predict failures.
 
 ---
 
-## ▍ Where the project stands
+## Where the project stands
 
 | Phase | What | Status |
 |---|---|---|
@@ -73,26 +68,13 @@ The next phase trains ML models on this run data to predict failures.
 
 ---
 
-## ▍ How it works
+## How it works
 
-```mermaid
-flowchart LR
-    subgraph Agents
-        T[Tool Agent]
-        R[Research Agent]
-        D[Document Agent]
-    end
-    T & R & D -->|callbacks trace every step| DB[(SQLite)]
-    D --- V[(Chroma vector store)]
-    J[Answer judge + labels] --> DB
-    DB --> API[FastAPI]
-    API --> UI[Streamlit dashboard]
-    UI -->|Agent Lab| Agents
-```
+<img src="docs/images/architecture.svg" width="100%" alt="Architecture: three agents write traces to SQLite; FastAPI serves a Streamlit dashboard" />
 
 ---
 
-## ▍ The three agents
+## The three agents
 
 | Agent | What it does |
 |---|---|
@@ -102,7 +84,31 @@ flowchart LR
 
 ---
 
-## ▍ What the dashboard shows
+## Results for all three agents
+
+Every run of every agent is traced, so the same numbers exist for all three (3,975 runs, about 17 million tokens).
+
+| | Tool Agent | Research Agent | Document Agent |
+|---|---|---|---|
+| **Runs** | 1,004 | 477 | 2,494 |
+| **Finished as `success`** | 856 (85.3%) | 398 (83.4%) | 2,481 (99.5%) |
+| **Other statuses** | 145 `partial_success`, 2 `error`, 1 still `running` | 45 `failed`, 30 `needs_review`, 1 `insufficient_sources`, 3 still `running` | 13 `error` |
+| **Recorded failure causes** | none recorded in the trace | LLM rate limit 21, timeout 8 | network error 13 |
+| **Median latency** | 5.2 s | 59.1 s | 1.7 s |
+| **Slowest run** | 113.6 s | 148.9 s | 40.8 s |
+| **Tokens used** | 3.5 M | 10.3 M | 3.2 M |
+| **Answers checked against a known answer** | not yet | not yet | yes (see below) |
+
+What this shows:
+
+- **The three agents fail in different ways.** The Tool Agent mostly ends as `partial_success` (14.4% of runs), the Research Agent as `failed` (9.4%) or `needs_review` (6.3%), and the Document Agent almost never fails by status (0.5%).
+- **The Research Agent is the expensive one.** It made 12% of the runs but used about 61% of the tokens, and a typical run takes about a minute. Its recorded failures are API problems (rate limits and timeouts), not wrong answers.
+- **Failed runs are data.** Rate limits, timeouts and network errors are kept in the database, not removed, because this project exists to study them. A few runs (4 in total) were left in `running` status when they were interrupted and are not counted as successes.
+- **Status is only half of the story.** All of the numbers above are run status. Only the Document Agent also has its answers checked against known correct answers, and that check is where its 99.5% turns into 59.5% on real documents (next sections). Checking answers for the Tool and Research agents is still to be done.
+
+---
+
+## What the dashboard shows
 
 - Health and success rate per agent, runs over time, latency, tokens
 - Every status in its own colour (success, failed, needs review, retrieval miss, generation miss ...)
@@ -113,7 +119,7 @@ flowchart LR
 
 ---
 
-## ▍ Key findings: generated documents
+## Key findings: generated documents
 
 The first test: 95.8% correct, with every wrong answer hiding behind a `success` status.
 
@@ -155,7 +161,7 @@ Runs lost to API problems (rate limits, timeouts) are kept as data, not hidden.
 
 ---
 
-## ▍ Key findings: real documents (59.5%, then 73.9%)
+## Key findings: real documents (59.5%, then 73.9%)
 
 The generated documents are clean and short. To check that, the same Document Agent was run on **20 real public documents**:
 research papers (Attention, BERT, GPT-4, Llama 2, RAG), annual reports (Infosys, NVIDIA), the NIST AI RMF Playbook and two AWS Well-Architected lenses,
@@ -263,7 +269,7 @@ On the same questions, 50 went from wrong to right and 15 from right to wrong (n
 
 ---
 
-## ▍ Screenshots
+## Screenshots
 
 <table>
 <tr>
@@ -285,7 +291,7 @@ On the same questions, 50 went from wrong to right and 15 from right to wrong (n
 
 ---
 
-## ▍ Skills shown in this project
+## Skills shown in this project
 
 | Done | Planned |
 |---|---|
@@ -299,14 +305,14 @@ On the same questions, 50 went from wrong to right and 15 from right to wrong (n
 
 ---
 
-## ▍ Stack
+## Stack
 
 Python, LangChain, NVIDIA NIM (LLM and embeddings), Chroma, SQLite and SQLAlchemy,
 FastAPI, Streamlit, Plotly, Tavily.
 
 ---
 
-## ▍ Run it
+## Run it
 
 ```bash
 pip install -r requirements.txt        # or: uv pip install -r requirements.txt
@@ -350,25 +356,42 @@ It is created when you run the scripts above.
 
 ---
 
-## ▍ Project layout
+## Project layout
 
-```
-agentops/agents      tool, research and document agents
-agentops/monitoring  callbacks and recorder that trace every step
-agentops/api         FastAPI routes
-agentops/datagen     test questions, document generator, answer judge
-agentops/db          database models
-dashboard/           Streamlit app
-scripts/             bulk runs, labels, summaries
-docs/images/         screenshots
-```
+| Folder | What is inside |
+|---|---|
+| [`agentops/agents/`](agentops/agents) | The three agents: tool, research and document (RAG) |
+| [`agentops/monitoring/`](agentops/monitoring) | Callbacks and the recorder that trace every step into SQLite |
+| [`agentops/api/`](agentops/api) | FastAPI routes: runs, traces, analytics, labels |
+| [`agentops/datagen/`](agentops/datagen) | Test questions, document generator and the answer judge |
+| [`agentops/db/`](agentops/db) | Database models (runs, steps, labels) |
+| [`dashboard/`](dashboard) | Streamlit app: Monitoring page and Agent Lab |
+| [`scripts/`](scripts) | Bulk runs, label import, summaries and evaluation scripts |
+| [`docs/images/`](docs/images) | Screenshots and the diagrams used in this README |
+
+`data/` (database, vector store, generated files) and `.env` are not in the repo. They are created when you run the scripts.
 
 ---
 
-## ▍ Author
+## Author
 
-**Adarsh Singh** · [LinkedIn](https://www.linkedin.com/in/adarsh--ssingh/) · [GitHub](https://github.com/Adarsh-SSingh) · [Email](mailto:adarshsingh748263@gmail.com)
+<div align="center">
+
+**Adarsh Singh**<br/>
+B.Tech CSE graduate (2026), Bangalore. Building toward junior AI/ML roles, one project at a time.
+
+<br/>
+
+<a href="https://www.linkedin.com/in/adarsh--ssingh/"><img src="https://img.shields.io/badge/LinkedIn-Adarsh_Singh-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" /></a>
+<a href="https://github.com/Adarsh-SSingh"><img src="https://img.shields.io/badge/GitHub-Adarsh--SSingh-30363D?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" /></a>
+<a href="mailto:adarshsingh748263@gmail.com"><img src="https://img.shields.io/badge/Email-Say_hello-0E7490?style=for-the-badge&logo=gmail&logoColor=white" alt="Email" /></a>
+
+<br/><br/>
+
+If this project was useful or interesting, a star on the repo helps.
 
 <br/>
 
 <img src="docs/images/footer.svg" width="100%" alt="Thanks for visiting" />
+
+</div>
