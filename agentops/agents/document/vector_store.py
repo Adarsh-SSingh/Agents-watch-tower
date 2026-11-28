@@ -1,3 +1,5 @@
+import os
+import re
 import uuid
 from typing import List, Optional
 
@@ -18,6 +20,31 @@ vector_store = Chroma(
     embedding_function=embeddings,
     persist_directory=VECTOR_DB_PATH,
 )
+
+
+_DOT_LEADERS = re.compile(r"\.{4,}|(?:\. ){4,}")
+_ENDS_WITH_PAGE_NO = re.compile(r"\S\s+\d{1,4}\s*$")
+
+
+def looks_like_table_of_contents(text):
+    """True for chunks that only LIST section names and page numbers.
+
+    Such chunks mention every heading, so they rank above the real text
+    ("What does GOVERN 1.6 require?" matched the contents page, not the
+    GOVERN 1.6 section). Rule: many short lines that end in a page number,
+    or dotted leaders, or a "table of contents" title with some of them.
+    """
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    if len(lines) < 4:
+        return False
+    page_lines = sum(1 for ln in lines if _ENDS_WITH_PAGE_NO.search(ln))
+    dotted = sum(1 for ln in lines if _DOT_LEADERS.search(ln))
+    share = page_lines / len(lines)
+    if dotted / len(lines) >= 0.3:
+        return True
+    if "table of contents" in text.lower() and share >= 0.3:
+        return True
+    return share >= 0.6
 
 
 def store_documents(chunks, document_id=None):
@@ -82,15 +109,27 @@ class ScoredChromaRetriever(BaseRetriever):
             {"document_id": self.document_id} if self.document_id else None
         )
 
+        # Ask for extra candidates, drop table-of-contents chunks, keep the
+        # best k. If too few real chunks remain, fall back to the plain top k.
         results = vector_store.similarity_search_with_score(
             query,
-            k=self.k,
+            k=self.k * 5,
             filter=search_filter,
         )
 
+        if os.environ.get("AGENTOPS_NO_FIXES") == "1":
+            # Test switch: retrieval as it was BEFORE the fixes (plain top k,
+            # no table-of-contents filter, no CSV dataset-summary chunks).
+            plain = [(d, s) for d, s in results if not d.metadata.get("summary")]
+            chosen = plain[: self.k]
+        else:
+            kept = [(d, s) for d, s in results
+                    if not looks_like_table_of_contents(d.page_content)]
+            chosen = kept[: self.k] if len(kept) >= self.k else results[: self.k]
+
         documents = []
 
-        for document, score in results:
+        for document, score in chosen:
             document.metadata["retrieval_score"] = round(float(score), 6)
             documents.append(document)
 

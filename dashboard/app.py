@@ -1493,6 +1493,79 @@ def quality_numbers(quality):
     return total, correct, silent, (correct / total * 100 if total else None)
 
 
+def render_real_vs_synthetic(quality):
+    """Same agent, two test sets: generated (synthetic) documents vs real public documents."""
+    syn = (quality or {}).get("synthetic") or {}
+    real = (quality or {}).get("real") or {}
+    after = (quality or {}).get("real_after") or {}
+    held = (quality or {}).get("real_heldout") or {}
+    held_off = (quality or {}).get("real_heldout_nofix") or {}
+    if not syn.get("total") or not real.get("total"):
+        return
+
+    def rate(part):
+        return part["correct"] / part["total"] * 100 if part.get("total") else 0.0
+
+    with panel():
+        _title("Synthetic vs real documents",
+               "The same Document Agent tested on generated documents (short, clean) and on real "
+               "public documents (papers, reports, datasets). The gap is what a clean test set hides.")
+        stats = [
+            ("Synthetic answers correct", f"{rate(syn):.1f}%"),
+            ("Real answers correct", f"{rate(real):.1f}%"),
+        ]
+        if after.get("total"):
+            stats += [("Real after fix", f"{rate(after):.1f}%"),
+                      ("Improvement", f"{rate(after) - rate(real):+.1f} pts")]
+        if held.get("total") and held_off.get("total"):
+            stats += [("Held-out, fixes off", f"{rate(held_off):.1f}%"),
+                      ("Held-out, fixes on", f"{rate(held):.1f}%"),
+                      ("Fix effect", f"{rate(held) - rate(held_off):+.1f} pts")]
+        elif held.get("total"):
+            stats += [("Real held-out (new questions)", f"{rate(held):.1f}%")]
+        if not after.get("total"):
+            stats += [("Gap", f"{rate(syn) - rate(real):.1f} pts"),
+                      ("Real wrong answers", f"{real['total'] - real['correct']:,}")]
+        st.markdown(mini_stats(stats),
+            unsafe_allow_html=True,
+        )
+        left, right = st.columns(2, gap="medium")
+
+        with left:
+            st.markdown("**By question type**")
+            rows = []
+            for label, part in (("Synthetic", syn), ("Real", real), ("Real after fix", after), ("Held-out, fixes off", held_off), ("Held-out, fixes on", held)):
+                for item in part.get("by_question_type") or []:
+                    if item["total"] >= 3:
+                        rows.append({"Question type": item["name"], "Set": label,
+                                     "Correct (%)": round(item["correct"] / item["total"] * 100, 1)})
+            if rows:
+                fig = px.bar(pd.DataFrame(rows), x="Question type", y="Correct (%)", color="Set",
+                             barmode="group", color_discrete_map={"Synthetic": CYAN, "Real": AMBER, "Real after fix": "#22c55e", "Held-out, fixes off": "#94a3b8", "Held-out, fixes on": PURPLE})
+                fig.update_yaxes(range=[0, 108])
+                fig.update_layout(legend_title_text="")
+                show_chart(_dark(fig, 320), key="qa_syn_real_type")
+
+        with right:
+            st.markdown("**Real documents by kind**")
+            kinds = []
+            for item in real.get("by_doc_type") or []:
+                name = str(item["name"]).replace("Real ", "", 1)
+                pct = round(item["correct"] / item["total"] * 100, 1) if item["total"] else 0.0
+                kinds.append({"Kind": name, "Correct (%)": pct,
+                              "label": f"{pct}%  ({item['correct']}/{item['total']})"})
+            if kinds:
+                kdf = pd.DataFrame(kinds).sort_values("Correct (%)")
+                fig = px.bar(kdf, x="Correct (%)", y="Kind", orientation="h", text="label",
+                             color="Correct (%)", color_continuous_scale=[RED, AMBER, "#22c55e"],
+                             range_color=[0, 100])
+                fig.update_traces(textposition="outside", cliponaxis=False, textfont={"color": "#e2e8f0"})
+                fig.update_layout(coloraxis_showscale=False)
+                fig.update_xaxes(range=[0, 140])
+                fig.update_yaxes(title="")
+                show_chart(_dark(fig, 320), key="qa_real_kind")
+
+
 def render_failures_section(quality, failures_data, totals=None):
     """Answer quality of the document agent + failures of every agent."""
     heading("triangle-alert", "Failures & Answer Quality")
@@ -1537,8 +1610,13 @@ def render_failures_section(quality, failures_data, totals=None):
             fig.update_xaxes(range=[0, 135])
             show_chart(_dark(fig, 230), key="success_by_agent")
             if total:
+                syn, real = (quality or {}).get("synthetic") or {}, (quality or {}).get("real") or {}
+                split = ""
+                if syn.get("total") and real.get("total"):
+                    split = (f" Synthetic {syn['correct'] / syn['total'] * 100:.1f}% ({syn['total']:,}) · "
+                             f"real documents {real['correct'] / real['total'] * 100:.1f}% ({real['total']:,}).")
                 st.caption(f"Document Agent: {total:,} answers checked, {accuracy:.1f}% correct, "
-                           f"{total - correct:,} wrong.")
+                           f"{total - correct:,} wrong.{split}")
 
     with right, panel(430):
         _title("Failures by agent",
@@ -1563,6 +1641,8 @@ def render_failures_section(quality, failures_data, totals=None):
             )
             fig.update_layout(barmode="stack", legend_title_text="", legend={"font": {"color": "#e2e8f0"}})
             show_chart(_dark(fig, 340), key="fail_by_agent")
+
+    render_real_vs_synthetic(quality)
 
     with panel():
         _title("Recent failures",

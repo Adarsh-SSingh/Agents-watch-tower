@@ -31,7 +31,7 @@ def labels_summary():
     session = SessionLocal()
     try:
         labels = _labels_by_trace(session, ["answer_correct", "retrieval_hit", "rag_outcome",
-                                            "question_type", "doc_type", "source_correct"])
+                                            "question_type", "doc_type", "source_correct", "run_set"])
         runs = {r.trace_id: r for r in session.query(AgentRun).filter(
             AgentRun.trace_id.in_(list(labels))).all()} if labels else {}
 
@@ -39,6 +39,13 @@ def labels_summary():
         by_type, by_doc = defaultdict(lambda: [0, 0]), defaultdict(lambda: [0, 0])
         outcomes, hits = Counter(), Counter()
         silent = 0   # run status success, answer wrong
+
+        # Synthetic documents vs real public documents (doc_type starts with "Real ")
+        parts = {name: {"total": 0, "correct": 0, "silent_failures": 0,
+                        "by_question_type": defaultdict(lambda: [0, 0]),
+                        "by_doc_type": defaultdict(lambda: [0, 0]),
+                        "outcomes": Counter()}
+                 for name in ("synthetic", "real", "real_after", "real_heldout", "real_heldout_nofix")}
 
         for trace_id, lab in labels.items():
             if "answer_correct" not in lab:
@@ -53,8 +60,28 @@ def labels_summary():
             outcomes[lab.get("rag_outcome", "?")] += 1
             hits[lab.get("retrieval_hit", "?")] += 1
             run = runs.get(trace_id)
-            if not ok and run is not None and run.status in OK_STATUSES:
+            is_silent = (not ok) and run is not None and run.status in OK_STATUSES
+            if is_silent:
                 silent += 1
+
+            if not str(lab.get("doc_type", "")).startswith("Real "):
+                part = parts["synthetic"]
+            elif lab.get("run_set") == "after":
+                part = parts["real_after"]
+            elif lab.get("run_set") == "heldout_nofix":
+                part = parts["real_heldout_nofix"]
+            elif lab.get("run_set") == "heldout":
+                part = parts["real_heldout"]
+            else:
+                part = parts["real"]
+            part["total"] += 1
+            part["correct"] += ok
+            part["silent_failures"] += is_silent
+            part["by_question_type"][lab.get("question_type", "?")][0] += 1
+            part["by_question_type"][lab.get("question_type", "?")][1] += ok
+            part["by_doc_type"][lab.get("doc_type", "?")][0] += 1
+            part["by_doc_type"][lab.get("doc_type", "?")][1] += ok
+            part["outcomes"][lab.get("rag_outcome", "?")] += 1
 
         failure_rows = session.query(RunLabel).filter(RunLabel.label_name == "failure_type").all()
         failure_types = Counter(r.label_value for r in failure_rows)
@@ -62,7 +89,22 @@ def labels_summary():
         def pack(groups):
             return [{"name": k, "total": v[0], "correct": v[1]} for k, v in groups.items()]
 
+        def pack_part(part):
+            return {
+                "total": part["total"],
+                "correct": part["correct"],
+                "silent_failures": part["silent_failures"],
+                "by_question_type": pack(part["by_question_type"]),
+                "by_doc_type": pack(part["by_doc_type"]),
+                "outcomes": dict(part["outcomes"]),
+            }
+
         return {
+            "synthetic": pack_part(parts["synthetic"]),
+            "real": pack_part(parts["real"]),
+            "real_after": pack_part(parts["real_after"]),
+            "real_heldout": pack_part(parts["real_heldout"]),
+            "real_heldout_nofix": pack_part(parts["real_heldout_nofix"]),
             "document": {
                 "total": total,
                 "correct": correct,

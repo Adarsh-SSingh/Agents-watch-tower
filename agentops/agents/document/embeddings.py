@@ -7,7 +7,7 @@ from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
 load_dotenv()
 
 
-EMBEDDING_MODEL = "nvidia/nemotron-3-embed-1b"
+EMBEDDING_MODEL = "nvidia/nemotron-3.5-embed-1b"
 
 
 embeddings = NVIDIAEmbeddings(

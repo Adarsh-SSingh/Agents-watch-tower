@@ -65,9 +65,20 @@ def main():
     labels = {}   # (trace_id, name) -> (value, source)
 
     # ---- document runs
-    trace = {r["Run No"]: r["Trace ID"] for r in read_csv("document_trace_map.csv")}
-    for row in read_csv("document_data.csv"):
-        trace_id = trace.get(row["Run No"])
+    pairs = [("document_data.csv", "document_trace_map.csv"),
+             ("real_document_data.csv", "real_document_trace_map.csv"),
+             ("real_after_document_data.csv", "real_after_document_trace_map.csv"),
+             ("real_heldout_document_data.csv", "real_heldout_document_trace_map.csv"),
+             ("real_heldout_nofix_document_data.csv", "real_heldout_nofix_document_trace_map.csv")]
+    rows = []
+    for data_file, map_file in pairs:
+        trace_map = {r["Run No"]: r["Trace ID"] for r in read_csv(map_file)}
+        for row in read_csv(data_file):
+            row["_trace_id"] = trace_map.get(row["Run No"])
+            row["_source"] = data_file
+            rows.append(row)
+    for row in rows:
+        trace_id = row["_trace_id"]
         if not trace_id:
             continue
         expected = [e for e in row["Expected Answer"].split("|") if e]
@@ -92,11 +103,16 @@ def main():
             ("rag_outcome", outcome),
             ("question_type", row["Question Type"]),
             ("doc_type", row["Doc Type"]),
+            # "after" = same real questions run again after the retrieval fixes
+            ("run_set", "heldout_nofix" if row["_source"].startswith("real_heldout_nofix_") else "heldout" if row["_source"].startswith("real_heldout_") else ("after" if row["_source"].startswith("real_after_") else "before")),
         ]:
-            labels[(trace_id, name)] = (value, "document_data.csv")
+            labels[(trace_id, name)] = (value, row["_source"])
 
     # ---- failed runs (research + document)
-    for file_name in ("research_failures.csv", "document_failures.csv"):
+    for file_name in ("research_failures.csv", "document_failures.csv", "real_document_failures.csv",
+                      "real_after_document_failures.csv",
+                      "real_heldout_document_failures.csv",
+                      "real_heldout_nofix_document_failures.csv"):
         for row in read_csv(file_name):
             trace_id = row.get("Trace ID")
             if not trace_id:
