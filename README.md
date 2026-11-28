@@ -8,8 +8,8 @@
 
 <table>
 <tr>
-<td align="center"><h2>2,475</h2>traced runs</td>
-<td align="center"><h2>15M</h2>tokens recorded</td>
+<td align="center"><h2>3,975</h2>traced runs</td>
+<td align="center"><h2>17M</h2>tokens recorded</td>
 <td align="center"><h2>95.8% → 59.5%</h2>generated vs real documents</td>
 <td align="center"><h2>69.2% → 73.9%</h2>held-out, fixes off vs on</td>
 </tr>
@@ -51,8 +51,8 @@ The next phase trains ML models on this run data to predict failures.
 | | |
 |---|---|
 | **Agents monitored** | Tool Agent, Research Agent, Document/RAG Agent |
-| **Data** | 2,475 traced runs, about 15 million tokens, every step stored in SQLite |
-| **Clean-run success** | Tool 85.3% · Research 83.4% · Document 98.7% |
+| **Data** | 3,975 traced runs, about 17 million tokens, every step stored in SQLite |
+| **Clean-run success** | Tool 85.3% · Research 83.4% · Document 99.5% |
 | **Silent-failure gap** | Document Agent: 95.8% correct on generated documents, 59.5% on real ones |
 | **Retrieval fixes (held-out, same questions)** | 69.2% without fixes, 73.9% with fixes (CSV 29.6% to 49.1%) |
 
@@ -142,7 +142,7 @@ Every answer is checked against the known answer, so a run with status `success`
 | Unanswerable | 67 / 67 (100%) |
 | Multi-part | 14 / 14 (100%) |
 
-**Data collected so far:** 2,475 traced runs and about 15 million tokens (about 1,000 Tool Agent runs, 480 Research Agent runs and 990 Document Agent runs).
+**Data collected so far:** 3,975 traced runs and about 17 million tokens (1,004 Tool Agent runs, 477 Research Agent runs and 2,494 Document Agent runs).
 Runs lost to API problems (rate limits, timeouts) are kept as data, not hidden.
 
 ### Limitations of this first test
@@ -167,7 +167,7 @@ There are **84 questions with known answers**, each asked in 3 styles (plain, po
 | Generated documents | **95.8%** (390 / 407) |
 | Real documents | **59.5%** (150 / 252) |
 
-Across all Document Agent runs, 98.7% finished with status `success`. The run status does not change between the two sets.
+Across all 2,494 Document Agent runs, 99.5% finished with status `success`. The run status does not change between the two sets.
 Only the answer check shows the difference, which is the point of this project.
 
 **By question type (real documents):** Yes/No 100%, Unanswerable 100%, Multi-part 75.0%, Fact 70.4%, Table lookup 40.0%, Aggregation 8.3%, Calculation 0%.
